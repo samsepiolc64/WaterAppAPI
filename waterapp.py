@@ -8,6 +8,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'kluczniejawny'
 app.config['SQLALCHEMY_DATABASE_URI']='postgresql://postgres:pg@localhost/waterapp'
 
+
 db = SQLAlchemy(app)
 
 class User(db.Model):
