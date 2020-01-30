@@ -1,3 +1,4 @@
+import os #.env
 from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 import uuid
@@ -8,7 +9,7 @@ from functools import wraps
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = 'thisissecret'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:pg@localhost/waterapp'
 
 db = SQLAlchemy(app)
@@ -127,4 +128,3 @@ def login():
 
 if __name__ == '__main__':
      app.run(debug=True)
-     
