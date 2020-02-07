@@ -1,6 +1,6 @@
 import re
 import os #.env
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, Response, json
 from flask_sqlalchemy import SQLAlchemy
 import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -13,6 +13,7 @@ app = Flask(__name__)
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:pg@localhost/waterapp'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
@@ -48,10 +49,27 @@ def token_required(f):
     return decorated
 
 
+
+
+class JsonResponse(Response):
+    def __init__(self, json_dict, status=200):
+        super().__init__(response=json.dumps(json_dict), status=status, mimetype="application/json")
+@app.route('/add', methods=['POST'])
+def add():
+    json = request.json
+    resp = JsonResponse(json_dict={"answer": json['key']*2}, status=200)
+    return resp
+
+
+
+
+
 @app.route('/admin', methods=['POST'])
 def create_admin():
     data = request.get_json()
-    check(data['email'], data['password'])
+    regex = r'^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
+    if (not re.search(regex, data['email'])) or (len(data['password']) < 6):
+        return jsonify({'message': 'niepoprawy email albo haslo min 6 znakow'})
     hashed_password = generate_password_hash(data['password'], method='sha256')
     new_user = User(public_id=str(uuid.uuid4()), email=data['email'], password=hashed_password, admin=True)
     db.session.add(new_user)
@@ -95,7 +113,7 @@ def create_user(current_user):
     if not current_user.admin:
         return jsonify({'message':'nie mozna wykonac tej funkcji'})
     data = request.get_json()
-    regex = '^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
+    regex = r'^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
     if (not re.search(regex, data['email'])) or (len(data['password']) < 6):
         return jsonify({'message' : 'niepoprawy email albo haslo min 6 znakow'})
     hashed_password = generate_password_hash(data['password'], method='sha256')
@@ -197,7 +215,7 @@ def delete_todo(current_user, todo_id):
     db.session.commit()
     return jsonify({'message':'todo usuniety'})
 
-@app.route('/reset/<public_id>', methods=['POST'])
+@app.route('/reset/<public_id>', methods=['GET'])
 def get_reset_token(public_id, expires_sec=1800):
     s = Serializer(app.config['SECRET_KEY'], expires_sec)
     user = User.query.filter_by(public_id=public_id).first()
@@ -207,7 +225,7 @@ def get_reset_token(public_id, expires_sec=1800):
     db.session.commit()
     return jsonify(user.reset_token)
 
-@app.route('/reset/<reset_token>', methods=['GET'])
+@app.route('/reset/<reset_token>', methods=['PUT'])
 def change_password(reset_token):
     s = Serializer(app.config['SECRET_KEY'])
     try:
