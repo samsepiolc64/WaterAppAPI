@@ -2,7 +2,7 @@ from flask import Flask
 import json
 import unittest
 #from waterapp import app
-from app import app
+from .\app.py import app
 import pytest
 
 @pytest.fixture

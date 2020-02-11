@@ -1,3 +1,6 @@
+import sys
+sys.path.append(".")
+
 import re
 from flask import request, jsonify, make_response, Response, json
 import uuid
