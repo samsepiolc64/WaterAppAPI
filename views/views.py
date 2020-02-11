@@ -1,13 +1,38 @@
 import re
-from flask import Flask, request, jsonify, make_response, Response, json
+from flask import request, jsonify, make_response, Response, json
 import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
+from flask_sqlalchemy import SQLAlchemy
 import datetime #exp
 from functools import wraps
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer #password reset
 
 from app import app
+
+db = SQLAlchemy(app)
+
+
+def getJSON(jsonFile):
+    with open(jsonFile, 'r') as jf:
+        return json.load(jf)
+
+json_messages = getJSON('./json/messages.json')
+
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    public_id = db.Column(db.String(50), unique=True)
+    email = db.Column(db.String(50), unique=True)
+    password = db.Column(db.String(80))
+    admin = db.Column(db.Boolean)
+    reset_token = db.Column(db.String())
+
+class Todo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.String(50))
+    complete = db.Column(db.Boolean)
+    user_id = db.Column(db.Integer)
 
 def token_required(f):
     @wraps(f)
@@ -16,17 +41,21 @@ def token_required(f):
         if 'x-access-token' in request.headers:
             token = request.headers['x-access-token']
         if not token:
-            return jsonify({'message':'token wygasl'}), 401
+            return jsonify({'message' : json_messages.get("token_expired", "")}), 401
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'])
             current_user = User.query.filter_by(public_id=data['public_id']).first()
         except:
-            return jsonify({'message':'bledny token'}), 401
+            return jsonify({'message' : json_messages.get("token_incorrect", "")}), 401
         return f(current_user, *args, **kwargs)
     return decorated
 
+def check_login(email, password):
+    regex = r'^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
+    if (not re.search(regex, email)) or (len(password) < 6):
+        return True
 
-
+#*****************************
 
 class JsonResponse(Response):
     def __init__(self, json_dict, status=200):
@@ -37,28 +66,24 @@ def add():
     resp = JsonResponse(json_dict={"answer": json['key']*2}, status=200)
     return resp
 
-
-
-
-
+#*****************************
 
 @app.route('/admin', methods=['POST'])
 def create_admin():
     data = request.get_json()
-    regex = r'^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
-    if (not re.search(regex, data['email'])) or (len(data['password']) < 6):
-        return jsonify({'message': 'niepoprawy email albo haslo min 6 znakow'})
+    if check_login(data['email'], data['password']):
+        return jsonify({'message': json_messages.get("login_password_incorrect","")})
     hashed_password = generate_password_hash(data['password'], method='sha256')
     new_user = User(public_id=str(uuid.uuid4()), email=data['email'], password=hashed_password, admin=True)
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({'message' : 'admin utworzony'})
+    return jsonify({'message' : json_messages.get("admin_create", "")})
 
 @app.route('/user', methods=['GET'])
 @token_required
 def get_all_users(current_user):
     if not current_user.admin:
-        return jsonify({'message':'nie mozna wykonac tej funkcji'})
+        return jsonify({'message' : json_messages.get("function_not_perform", "")})
     users = User.query.all()
     output = []
     for user in users:
@@ -74,10 +99,10 @@ def get_all_users(current_user):
 @token_required
 def get_one_user(current_user, public_id):
     if not current_user.admin:
-        return jsonify({'message':'nie mozna wykonac tej funkcji'})
+        return jsonify({'message' : json_messages.get("function_not_perform", "")})
     user = User.query.filter_by(public_id=public_id).first()
     if not user:
-        return jsonify({'message':'nie znaleziono uzytkownika'})
+        return jsonify({'message' : json_messages.get("user_not_found", "")})
     user_data = {}
     user_data['public_id'] = user.public_id
     user_data['email'] = user.email
@@ -89,40 +114,39 @@ def get_one_user(current_user, public_id):
 @token_required
 def create_user(current_user):
     if not current_user.admin:
-        return jsonify({'message':'nie mozna wykonac tej funkcji'})
+        return jsonify({'message' : json_messages.get("function_not_perform", "")})
     data = request.get_json()
-    regex = r'^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
-    if (not re.search(regex, data['email'])) or (len(data['password']) < 6):
-        return jsonify({'message' : 'niepoprawy email albo haslo min 6 znakow'})
+    if check_login(data['email'], data['password']):
+        return jsonify({'message': json_messages.get("login_password_incorrect","")})
     hashed_password = generate_password_hash(data['password'], method='sha256')
     new_user = User(public_id=str(uuid.uuid4()), email=data['email'], password=hashed_password, admin=False)
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({'message' : 'nowy uzytkownik zostal utworzony'})
+    return jsonify({'message' : json_messages.get("user_create","")})
 
 @app.route('/user/<public_id>', methods=['PUT'])
 @token_required
 def promote_user(current_user, public_id):
     if not current_user.admin:
-        return jsonify({'message':'nie mozna wykonac tej funkcji'})
+        return jsonify({'message' : json_messages.get("function_not_perform","")})
     user = User.query.filter_by(public_id=public_id).first()
     if not user:
-        return jsonify({'message':'nie znaleziono uzytkownika'})
+        return jsonify({'message' : json_messages.get("user_not_found","")})
     user.admin = True
     db.session.commit()
-    return jsonify({'message' : 'uzytkownik uzyskal prawa admina'})
+    return jsonify({'message' : json_messages.get("user_promote","")})
 
 @app.route('/user/<public_id>', methods=['DELETE'])
 @token_required
 def delete_user(current_user, public_id):
     if not current_user.admin:
-        return jsonify({'message':'nie mozna wykonac tej funkcji'})
+        return jsonify({'message' : json_messages.get("function_not_perform","")})
     user = User.query.filter_by(public_id=public_id).first()
     if not user:
-        return jsonify({'message':'nie znaleziono uzytkownika'})
+        return jsonify({'message' : json_messages.get("user_not_found","")})
     db.session.delete(user)
     db.session.commit()
-    return jsonify({'message':'uzytkownik zostal usuniety'})
+    return jsonify({'message' : json_messages.get("user_delete","")})
 #add jwt
 @app.route('/login')
 def login():
@@ -157,7 +181,7 @@ def get_all_todos(current_user):
 def get_one_todo(current_user, todo_id):
     todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
     if not todo:
-        return jsonify({'message':'nie znaleziono todo'})
+        return jsonify({'message' : json_messages.get("todo_not_found","")})
     todo_data = {}
     todo_data['id'] = todo.id
     todo_data['text'] = todo.text
@@ -171,34 +195,34 @@ def create_todo(current_user):
     new_todo = Todo(text=data['text'], complete=False, user_id=current_user.id)
     db.session.add(new_todo)
     db.session.commit()
-    return jsonify({'message':'utworzono todo'})
+    return jsonify({'message' : json_messages.get("todo_create","")})
 
 @app.route('/todo/<todo_id>', methods=['PUT'])
 @token_required
 def complete_todo(current_user, todo_id):
     todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
     if not todo:
-        return jsonify({'message':'nie znaleziono todo'})
+        return jsonify({'message' : json_messages.get("todo_not_found","")})
     todo.complete = True
     db.session.commit()
-    return jsonify({'message':'todo kompletne'})
+    return jsonify({'message' : json_messages.get("todo_complete","")})
 
 @app.route('/todo/<todo_id>', methods=['DELETE'])
 @token_required
 def delete_todo(current_user, todo_id):
     todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
     if not todo:
-        return jsonify({'message':'nie znaleziono todo'})
+        return jsonify({'message' : json_messages.get("todo_not_found","")})
     db.session.delete(todo)
     db.session.commit()
-    return jsonify({'message':'todo usuniety'})
+    return jsonify({'message' : json_messages.get("todo_delete","")})
 
 @app.route('/reset/<public_id>', methods=['GET'])
 def get_reset_token(public_id, expires_sec=1800):
     s = Serializer(app.config['SECRET_KEY'], expires_sec)
     user = User.query.filter_by(public_id=public_id).first()
     if not user:
-        return jsonify({'message':'nie znaleziono uzytkownika'})
+        return jsonify({'message' : json_messages.get("user_not_found","")})
     user.reset_token = s.dumps({'public_id': public_id}).decode('utf-8')
     db.session.commit()
     return jsonify(user.reset_token)
@@ -209,12 +233,12 @@ def change_password(reset_token):
     try:
         public_id = s.loads(reset_token)['public_id']
     except:
-        return jsonify({'message':'niepoprawny resettoken'})
+        return jsonify({'message' : json_messages.get("resettoken_incorrect","")})
     data = request.get_json()
     user = User.query.filter_by(public_id=public_id).first()
     if len(data['new_password']) < 6:
-        return jsonify({'message':'haslo min 6 znakow'})
+        return jsonify({'message' : json_messages.get("password_change_error","")})
     new_hashed_password = generate_password_hash(data['new_password'], method='sha256')
     user.password = new_hashed_password
     db.session.commit()
-    return jsonify({'message': 'haslo zostalo zmienione'})
+    return jsonify({'message' : json_messages.get("password_change","")})
