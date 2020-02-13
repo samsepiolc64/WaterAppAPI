@@ -1,26 +1,27 @@
-from flask import Flask
+import sys
+sys.path.append("./")
+from app import app
+
+import requests
+import getpass
 import json
-import unittest
-#from waterapp import app
-from .\app.py import app
-import pytest
+from requests.auth import HTTPBasicAuth
 
-@pytest.fixture
+def test_token_headers_body_json():
+    username= "admin@admin.pl"
+    password= "12345"
+    response = requests.get(
+        'http://127.0.0.1:5000/login',
+        auth=HTTPBasicAuth(username, password),  # basic authentication
+        )
 
-def client(request):
-    test_client = app.test_client()
-    def teardown():
-        pass
-    request.addfinalizer(teardown)
-    return test_client
+    data = response.json()  # get response as parsed json (will return a dict)
+    auth_token = data.get('token')
 
-def post_json(client, url, json_dict):
-    return client.post(url, data = json.dumps(json_dict), content_type='application/json')
+    response = requests.get(
+        'http://127.0.0.1:5000/user',
+        headers={
+            'x-access-token': auth_token
+        })
 
-def json_of_response(response):
-    return json.loads(response.data.decode('utf8'))
-
-def test_json(client):
-    response = post_json(client, '/add', {'key': 'value'})
     assert response.status_code == 200
-    assert json_of_response(response) == {"answer": 'value' * 2}
