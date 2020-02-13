@@ -16,11 +16,11 @@ from app import app
 db = SQLAlchemy(app)
 
 
-def getJSON(jsonFile):
+def get_JSON(jsonFile):
     with open(jsonFile, 'r') as jf:
         return json.load(jf)
 
-json_messages = getJSON('./json/messages.json')
+json_messages = get_JSON('./json/messages.json')
 
 
 class User(db.Model):
@@ -57,19 +57,6 @@ def check_login(email, password):
     regex = r'^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
     if (not re.search(regex, email)) or (len(password) < 6):
         return True
-
-#*****************************
-
-class JsonResponse(Response):
-    def __init__(self, json_dict, status=200):
-        super().__init__(response=json.dumps(json_dict), status=status, mimetype="application/json")
-@app.route('/add', methods=['POST'])
-def add():
-    json = request.json
-    resp = JsonResponse(json_dict={"answer": json['key']*2}, status=200)
-    return resp
-
-#*****************************
 
 @app.route('/admin', methods=['POST'])
 def create_admin():
