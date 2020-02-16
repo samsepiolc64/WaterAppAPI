@@ -26,3 +26,4 @@ def test_get_all_users():
         headers={'x-access-token': auth_token}
     )
     assert response.status_code == 200
+    
