@@ -5,6 +5,7 @@ from flask import request, jsonify, json
 from functools import wraps
 from app import app
 
+
 db = SQLAlchemy(app)
 
 class User(db.Model):
@@ -21,10 +22,11 @@ class Todo(db.Model):
     complete = db.Column(db.Boolean)
     user_id = db.Column(db.Integer)
 
+
+
 def get_JSON(jsonFile):
     with open(jsonFile, 'r') as jf:
         return json.load(jf)
-
 json_messages = get_JSON('./json/messages.json')
 
 def token_required(f):
