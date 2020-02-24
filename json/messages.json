@@ -14,5 +14,6 @@
   "todo_delete" : "usunieto todo",
   "resettoken_incorrect" : "bledny resettoken",
   "password_change_error" : "haslo min 6 znakow",
-  "password_change" : "haslo zostalo zmienione"
+  "password_change" : "haslo zostalo zmienione",
+  "not_veryfied" : "nie mozna zweryfikowac"
 }

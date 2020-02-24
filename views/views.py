@@ -88,19 +88,19 @@ def delete_user(current_user, public_id):
     db.session.commit()
     return jsonify({'message' : json_messages.get("user_delete","")})
 #add jwt
-@app.route('/login')
+@app.route('/login', methods=['GET'])
 def login():
     auth = request.authorization
     if not auth or not auth.username or not auth.password:
-        return make_response('nie mozna zweryfikowac', 401, {'WWW-Authenticate':'Basic realm="wymagany login"'})
+        return make_response(json_messages.get("not_verified",""), 401, {'WWW-Authenticate':'Basic'})
     user = User.query.filter_by(email=auth.username).first()
     if not user:
-        return make_response('nie mozna zweryfikowac', 401, {'WWW-Authenticate':'Basic realm="wymagany login"'})
+        return make_response(json_messages.get("not_verified",""), 401, {'WWW-Authenticate':'Basic'})
     #tworzenie tokena
     if check_password_hash(user.password, auth.password):
         token = jwt.encode({'public_id' : user.public_id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, app.config['SECRET_KEY'])
         return jsonify({'token':token.decode('UTF-8')})
-    return make_response('nie mozna zweryfikowac', 401, {'WWW-Authenticate': 'Basic realm="wymagany login"'})
+    return make_response(json_messages.get("not_verified",""), 401, {'WWW-Authenticate': 'Basic'})
 
 #todo
 @app.route('/todo', methods=['GET'])

@@ -5,7 +5,6 @@ from flask import request, jsonify, json
 from functools import wraps
 from app import app
 
-
 db = SQLAlchemy(app)
 
 class User(db.Model):
@@ -21,8 +20,6 @@ class Todo(db.Model):
     text = db.Column(db.String(50))
     complete = db.Column(db.Boolean)
     user_id = db.Column(db.Integer)
-
-
 
 def get_JSON(jsonFile):
     with open(jsonFile, 'r') as jf:

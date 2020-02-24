@@ -1,13 +1,11 @@
-import random
 import uuid
 from faker import Factory
 from sqlalchemy import *
-from sqlalchemy import create_engine, Table
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import ForeignKey
-from sqlalchemy import Column, String, Integer, Text
-from sqlalchemy.orm import sessionmaker, relationship
-from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import Column, String, Integer
+from sqlalchemy.orm import sessionmaker
+from werkzeug.security import generate_password_hash
 
 from config.config import *
 
@@ -28,7 +26,6 @@ class User(Base):
         return '{}({})'.format(self.__class__.__name__, self.username)
 
 if __name__ == 'config.create_database':
-
     Base.metadata.drop_all(bind=engine, tables=[User.__table__])
     Base.metadata.create_all(engine)
 
