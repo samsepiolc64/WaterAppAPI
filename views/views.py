@@ -98,7 +98,7 @@ def login():
         return make_response(json_messages.get("not_verified",""), 401, {'WWW-Authenticate':'Basic'})
     #tworzenie tokena
     if check_password_hash(user.password, auth.password):
-        token = jwt.encode({'public_id' : user.public_id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, app.config['SECRET_KEY'])
+        token = jwt.encode({'public_id' : user.public_id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=120)}, app.config['SECRET_KEY'])
         return jsonify({'token':token.decode('UTF-8')})
     return make_response(json_messages.get("not_verified",""), 401, {'WWW-Authenticate': 'Basic'})
 
@@ -106,7 +106,7 @@ def login():
 @app.route('/todo', methods=['GET'])
 @token_required
 def get_all_todos(current_user):
-    todos = Todo.query.filter_by(user_id=current_user.id).all()
+    todos = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.id.desc()).all()
     output = []
     for todo in todos:
         todo_data = {}
@@ -114,7 +114,8 @@ def get_all_todos(current_user):
         todo_data['text'] = todo.text
         todo_data['complete'] = todo.complete
         output.append(todo_data)
-    return jsonify({'todos':output})
+    return jsonify(output)
+    #return jsonify({'todos':output})
 
 @app.route('/todo/<todo_id>', methods=['GET'])
 @token_required
@@ -135,7 +136,15 @@ def create_todo(current_user):
     new_todo = Todo(text=data['text'], complete=False, user_id=current_user.id)
     db.session.add(new_todo)
     db.session.commit()
-    return jsonify({'message' : json_messages.get("todo_create","")})
+
+    last_todo = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.id.desc()).first()
+    todo_data = {}
+    todo_data['id'] = last_todo.id
+    todo_data['text'] = last_todo.text
+    todo_data['complete'] = last_todo.complete
+    return jsonify(todo_data)
+    #return jsonify(data)
+    #return jsonify({'message' : json_messages.get("todo_create","")})
 
 @app.route('/todo/<todo_id>', methods=['PUT'])
 @token_required
@@ -143,9 +152,18 @@ def complete_todo(current_user, todo_id):
     todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
     if not todo:
         return jsonify({'message' : json_messages.get("todo_not_found","")})
-    todo.complete = True
+    if todo.complete == True:
+        todo.complete = False
+    else:
+        todo.complete = True
     db.session.commit()
-    return jsonify({'message' : json_messages.get("todo_complete","")})
+
+    todo_data = {}
+    todo_data['id'] = todo.id
+    todo_data['text'] = todo.text
+    todo_data['complete'] = todo.complete
+    return jsonify(todo_data)
+    #return jsonify({'message' : json_messages.get("todo_complete","")})
 
 @app.route('/todo/<todo_id>', methods=['DELETE'])
 @token_required
