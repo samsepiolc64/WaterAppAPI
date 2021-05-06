@@ -10,7 +10,7 @@ cryptography==2.8
 db==0.1.1
 Faker==4.0.0
 flask==1.1.1
-Flask-Cors==3.0.8
+Flask-Cors==3.0.9
 Flask-SQLAlchemy==2.4.1
 flask-wtf==0.15.dev20200119
 idna==2.8
